@@ -140,9 +140,46 @@ supabase-schema.sql                     — run this once in Supabase SQL editor
 
 ---
 
-## Coming next (Phase 2+)
+## Phase 2 — Google Drive setup (one-time)
 
-- **Phase 2:** Google Drive OAuth folder picker
+Phase 2 reads files from each brand's Google Drive folder using a **service account** (a "robot Google account" that you share folders with). One-time setup:
+
+### 2.1 Create the service account (~5 min)
+
+1. Open https://console.cloud.google.com/ — sign in with your Google account
+2. Top bar: click the project dropdown → **New Project** → name `adscreation-hub` → Create
+3. Wait ~10 seconds for it to provision, then make sure it's selected
+4. Left sidebar (☰ menu) → **APIs & Services → Library** → search for "Google Drive API" → click it → **Enable**
+5. Left sidebar → **IAM & Admin → Service Accounts** → **+ Create Service Account**
+   - Name: `drive-reader`
+   - ID: `drive-reader` (auto-fills)
+   - Click **Create and Continue**, skip the optional steps, **Done**
+6. Click into the new service account → **Keys** tab → **Add Key → Create New Key → JSON → Create**
+7. A JSON file downloads. Open it in a text editor. You need two values from it:
+   - `client_email` (looks like `drive-reader@adscreation-hub-xxxxx.iam.gserviceaccount.com`)
+   - `private_key` (a long string starting `-----BEGIN PRIVATE KEY-----`)
+
+### 2.2 Add to Vercel env vars (~1 min)
+
+In Vercel → your project → Settings → Environment Variables, add:
+
+| Key | Value |
+|---|---|
+| `GOOGLE_SERVICE_ACCOUNT_EMAIL` | the `client_email` value (no quotes) |
+| `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` | the `private_key` value, including the `-----BEGIN...END PRIVATE KEY-----` lines. Vercel will store the `\n` characters correctly — paste verbatim. |
+
+Then **Deployments → Redeploy** the latest deploy.
+
+### 2.3 Share each brand's Drive folder
+
+For each brand, open its Drive folder → **Share** → paste the service account email (from step 2.2) → set permission to **Viewer** → uncheck "Notify people" → Share.
+
+After that, paste the folder ID into the brand's Drive page in the app. Files appear automatically.
+
+---
+
+## Coming next (Phase 3+)
+
 - **Phase 3:** Gemini image generation route — loads DNA prompt + tone + product refs from Drive
 - **Phase 4:** Higgsfield video generation + Kive asset library integration
 - **Phase 5a:** (already in Phase 1 schema) Manual competitor references shipped
