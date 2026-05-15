@@ -109,14 +109,35 @@ export async function POST(
     }
     runId = insertRes.data.id as string;
 
-    // === Pull product reference photos from Drive ===
+    // === Pull product reference photos ===
+    // Priority 1: uploaded photos on the product (reference_image_urls)
+    // Priority 2 (fallback): Drive subfolder convention (products/{slug})
     const productRefs: ReferenceImage[] = [];
     const referenceFileIds: string[] = [];
-    if (brand.drive_folder_id) {
-      const subfolderPath =
-        product.banned_terms && false /* reserved */
-          ? []
-          : ["products", slugifyName(product.name)];
+
+    const uploadedUrls = Array.isArray(product.reference_image_urls)
+      ? product.reference_image_urls
+      : [];
+
+    if (uploadedUrls.length > 0) {
+      for (const url of uploadedUrls.slice(0, MAX_PRODUCT_REFS)) {
+        try {
+          const r = await fetch(url);
+          if (!r.ok) continue;
+          const buf = Buffer.from(await r.arrayBuffer());
+          const mimeType = r.headers.get("content-type") ?? "image/png";
+          productRefs.push({
+            data: buf,
+            mimeType,
+            role: "product",
+          });
+          referenceFileIds.push(url);
+        } catch {
+          // skip
+        }
+      }
+    } else if (brand.drive_folder_id) {
+      const subfolderPath = ["products", slugifyName(product.name)];
       const subfolderId = await findFolderByPath(
         brand.drive_folder_id,
         subfolderPath

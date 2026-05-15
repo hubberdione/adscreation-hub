@@ -11,5 +11,7 @@ export type Product = {
   one_liner: string | null;
   hero_benefits: string[] | null;
   banned_terms: string[] | null;
+  reference_image_urls: string[] | null;
+  reference_subfolder: string | null;
   created_at: string;
 };

@@ -6,6 +6,7 @@ import { ToneBadge } from "@/components/ToneBadge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Product } from "@/types/product";
 import { EditProductForm } from "./edit-product-form";
+import { ProductPhotos } from "./product-photos";
 
 export const dynamic = "force-dynamic";
 
@@ -29,8 +30,17 @@ export default async function ProductDetailPage({
 
     return (
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+        <div className="space-y-6 lg:col-span-2">
           <EditProductForm brandSlug={params.slug} product={product} />
+          <ProductPhotos
+            brandSlug={params.slug}
+            productId={product.id}
+            initialUrls={
+              Array.isArray(product.reference_image_urls)
+                ? product.reference_image_urls
+                : []
+            }
+          />
         </div>
         <div className="space-y-4">
           <Card>
