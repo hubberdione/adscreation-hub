@@ -8,6 +8,7 @@ const tabs = [
   { href: "", label: "Overview" },
   { href: "/products", label: "Products" },
   { href: "/competitors", label: "Competitors" },
+  { href: "/generate", label: "Generate" },
   { href: "/dna", label: "Brand DNA" },
   { href: "/drive", label: "Drive" },
 ];

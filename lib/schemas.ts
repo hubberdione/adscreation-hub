@@ -63,7 +63,17 @@ export const competitorCreateSchema = z
     }
   );
 
+export const aspectRatioSchema = z.enum(["4:5", "1:1", "16:9", "9:16"]);
+
+export const generateStaticSchema = z.object({
+  product_id: z.string().uuid(),
+  creative_brief: z.string().min(10).max(4000),
+  aspect_ratio: aspectRatioSchema.default("4:5"),
+  inspo_reference_ids: z.array(z.string().uuid()).optional().default([]),
+});
+
 export type BrandCreateInput = z.infer<typeof brandCreateSchema>;
 export type ProductCreateInput = z.infer<typeof productCreateSchema>;
 export type ProductUpdateInput = z.infer<typeof productUpdateSchema>;
 export type CompetitorCreateInput = z.infer<typeof competitorCreateSchema>;
+export type GenerateStaticInput = z.infer<typeof generateStaticSchema>;
