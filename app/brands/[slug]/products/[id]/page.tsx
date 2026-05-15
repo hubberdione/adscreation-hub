@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { unstable_noStore as noStore } from "next/cache";
 import { requireBrand, BrandNotFound } from "@/lib/brand-scope";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { buildCopyTone } from "@/lib/tone";
@@ -9,12 +10,15 @@ import { EditProductForm } from "./edit-product-form";
 import { ProductPhotos } from "./product-photos";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 export default async function ProductDetailPage({
   params,
 }: {
   params: { slug: string; id: string };
 }) {
+  noStore();
   try {
     const brand = await requireBrand(params.slug);
     const supabase = getServerSupabase();

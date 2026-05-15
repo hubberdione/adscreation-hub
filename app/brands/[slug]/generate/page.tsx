@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { unstable_noStore as noStore } from "next/cache";
 import { requireBrand, BrandNotFound } from "@/lib/brand-scope";
 import { getServerSupabase } from "@/lib/supabase/server";
 import type { Product } from "@/types/product";
@@ -8,12 +9,15 @@ import { GenerateForm } from "./generate-form";
 import { RunsGrid } from "./runs-grid";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 export default async function GeneratePage({
   params,
 }: {
   params: { slug: string };
 }) {
+  noStore();
   try {
     const brand = await requireBrand(params.slug);
     const supabase = getServerSupabase();

@@ -1,17 +1,21 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { unstable_noStore as noStore } from "next/cache";
 import { requireBrand, BrandNotFound } from "@/lib/brand-scope";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 export default async function BrandOverviewPage({
   params,
 }: {
   params: { slug: string };
 }) {
+  noStore();
   try {
     const brand = await requireBrand(params.slug);
     const supabase = getServerSupabase();

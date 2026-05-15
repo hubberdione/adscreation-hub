@@ -1,12 +1,16 @@
 import Link from "next/link";
+import { unstable_noStore as noStore } from "next/cache";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { BrandCard } from "@/components/BrandCard";
 import { Button } from "@/components/ui/button";
 import type { Brand } from "@/types/brand";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 async function loadBrands(): Promise<Brand[]> {
+  noStore();
   const supabase = getServerSupabase();
   const { data } = await supabase
     .from("brands")

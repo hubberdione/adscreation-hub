@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { unstable_noStore as noStore } from "next/cache";
 import { requireBrand, BrandNotFound } from "@/lib/brand-scope";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 const tabs = [
   { href: "", label: "Overview" },
@@ -20,6 +23,7 @@ export default async function BrandLayout({
   children: React.ReactNode;
   params: { slug: string };
 }) {
+  noStore();
   let brandName: string;
   try {
     const brand = await requireBrand(params.slug);

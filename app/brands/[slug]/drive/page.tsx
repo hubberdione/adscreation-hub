@@ -1,16 +1,20 @@
 import { notFound } from "next/navigation";
+import { unstable_noStore as noStore } from "next/cache";
 import { requireBrand, BrandNotFound } from "@/lib/brand-scope";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DriveFolderEditor } from "./drive-folder-editor";
 import { DriveFileList } from "./drive-file-list";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
 
 export default async function DrivePage({
   params,
 }: {
   params: { slug: string };
 }) {
+  noStore();
   try {
     const brand = await requireBrand(params.slug);
     const serviceAccountEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ?? "";
