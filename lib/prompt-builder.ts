@@ -13,12 +13,28 @@ export type ComposeOptions = {
   aspectRatio: AspectRatio;
 };
 
+function describeInspoMechanism(ref: CompetitorReference, i: number): string {
+  const label = ref.competitor_name ?? `Reference ${i + 1}`;
+  const tag = ref.is_winner ? " (proven winner)" : "";
+  const noteFragment = ref.notes ? `\n    Mechanism note: ${ref.notes}` : "";
+  const copyFragment =
+    ref.source_type === "text_copy" && ref.copy_text
+      ? `\n    Sample copy text from that reference: "${ref.copy_text.slice(0, 280)}"`
+      : "";
+  return `  - ${label}${tag}${noteFragment}${copyFragment}`;
+}
+
 /**
- * Compose the full 6-block prompt for a Gemini image generation.
- * - Server-side only.
- * - Brand DNA is loaded fresh from the DB by the caller, never accepted from client input.
- * - Inspo handling explicitly instructs MECHANISM EXTRACTION, not literal copy,
- *   per the user's variance-ladder framework (default 40% variance).
+ * Compose the full prompt for a Gemini image generation.
+ *
+ * Hard rules embedded in the prompt:
+ *   - The generator produces a NEW image, not an edit of any reference.
+ *   - Inspo references are described in TEXT only. Inspo image bytes are not
+ *     attached to the request, so the generator cannot pattern-match the inspo
+ *     image pixel-for-pixel. This protects against derivative output.
+ *   - Product reference images ARE attached and used for identity-lock on
+ *     product surface details only.
+ *   - Brand DNA + tone constraints are loaded server-side from the DB.
  */
 export function composeStaticPrompt(opts: ComposeOptions): string {
   const { brand, product, inspoRefs = [], creativeBrief, aspectRatio } = opts;
@@ -29,51 +45,52 @@ export function composeStaticPrompt(opts: ComposeOptions): string {
     ? product.hero_benefits.filter(Boolean).join(" | ")
     : "";
 
-  const inspoNotes = inspoRefs
-    .map((r, i) => {
-      const label = r.competitor_name ?? "Competitor";
-      const tag = r.is_winner ? " (proven winner)" : "";
-      const noteFragment = r.notes ? ` — note: ${r.notes}` : "";
-      return `  [Inspo ${i + 1}] ${label}${tag}${noteFragment}`;
-    })
-    .join("\n");
-
-  const referenceGuidance =
+  const inspoSection =
     inspoRefs.length > 0
-      ? `Some images attached after this prompt are INSPO REFERENCES. Study them only for their underlying STRUCTURAL MECHANISM — composition pattern, visual hook framing, the SHAPE of the proof element, where the eye is led. Translate that mechanism into a fully ${brand.name}-native execution. Do NOT replicate the literal design, colors, props, typography, illustration style, or product silhouette from the inspo. The execution must look like a ${brand.name} ad — not a reskin of the reference.
+      ? `
 
-The remaining attached images are PRODUCT REFERENCES. Preserve every visible product detail exactly: form factor, color, material, surface texture, hardware, proportions. Do not invent any feature not present in the product reference.`
-      : `All attached images are PRODUCT REFERENCES. Preserve every visible product detail exactly. Stay conservative on any visual element not explicitly specified in the brief.`;
+# INSPO MECHANISM NOTES (text only — no inspo image is attached)
+The following references inspired this brief. They are described here for STRUCTURAL inspiration only — composition framing, hook pattern, or proof shape. The actual inspo images are intentionally NOT attached to this request. You must generate an entirely new ${brand.name}-native image based on the brand DNA, product photos, and brief below. Do not attempt to reconstruct or echo the inspo visually.
 
-  return `You are generating a Meta-ready static ad creative for ${brand.name}.
+${inspoRefs.map(describeInspoMechanism).join("\n")}`
+      : "";
+
+  return `TASK: Generate a NEW production-ready Meta-ready static ad creative for the brand "${brand.name}". Output ONE original image. Do not edit, modify, or echo any attached image; treat attached images strictly as identity-lock product references.
+
+# CREATIVE BRIEF (this is the visual you must create)
+${creativeBrief.trim()}
+
+# OUTPUT SPEC
+- Aspect ratio: ${aspectRatio}
+- Production-ready static ad: no watermarks, no source attribution, no stock-photo overlays.
+- No AI tells: perfect hands and fingers if humans appear (no extra or missing fingers, no warped limbs).
+- Any rendered text in the image must be spelled EXACTLY as the brief specifies — no typos, no autocorrected words, no extra characters.
+- Visual register: match the Brand DNA below.
 
 # BRAND DNA — DO NOT DEVIATE
-${dna || "(no Brand DNA provided — render conservatively to a clean editorial style)"}
+${dna || "(no Brand DNA on file — render in a clean editorial style)"}
 
-# PRODUCT TRUTH — PRESERVE EVERY SURFACE DETAIL; DO NOT INVENT FEATURES
-Product: ${product.name}
-${description || "(no description provided)"}
+# PRODUCT TRUTH — preserve every visible surface detail; do not invent features
+Product name: ${product.name}
+${description || "(no description on file)"}
 Hero color: ${product.hero_color ?? "(not specified)"}
 Selling points: ${benefits || "(see description)"}
 One-liner: ${product.one_liner ?? "(not specified)"}
 
 # TONE — product status is "${product.status}" (${tone.label})
-ALLOWED CTAs (if a CTA renders in-frame, use one of these verbatim): ${tone.allowed_ctas.join(", ") || "(no CTA — copy-only)"}
-BANNED phrases (must NOT appear visually anywhere in the image): ${tone.banned_phrases.join(", ") || "(none)"}
+ALLOWED CTAs (use one if a CTA renders in-frame): ${tone.allowed_ctas.join(", ") || "(no CTA — copy-only)"}
+BANNED phrases (must NOT appear visually anywhere): ${tone.banned_phrases.join(", ") || "(none)"}
 Proof rules:
 ${tone.proof_rules.map((r) => `- ${r}`).join("\n") || "- (no specific proof rules)"}
 
-# REFERENCE IMAGE HANDLING
-${referenceGuidance}
-${inspoNotes ? `\nInspo refs in this batch:\n${inspoNotes}\n` : ""}
+# ATTACHED REFERENCE IMAGES (product identity-lock only)
+The image(s) attached to this request show the actual product. Preserve every visible product detail exactly — form factor, color, material, surface texture, hardware, proportions. Do not invent any feature not present in the attached photo. The attached images are not the creative — you must compose a new scene per the brief.${inspoSection}
 
-# CREATIVE BRIEF (this generation only)
-${creativeBrief.trim()}
-
-# OUTPUT SPEC
-- Aspect ratio: ${aspectRatio}
-- Production-ready static ad — no watermarks, no source attribution stamps.
-- No AI tells: perfect hands and fingers if humans appear (no extra or missing fingers, no warped limbs).
-- Any rendered text must be spelled EXACTLY as specified in the brief — no typos, no autocorrected words, no extra characters.
-- Visual register matches the Brand DNA above. If the DNA conflicts with the inspo's visual style, the DNA wins.`;
+FINAL CHECK before you output:
+- Is this a NEW image (not an edit of any attached photo)?
+- Does the scene match the CREATIVE BRIEF above?
+- Does the product look identical to the attached reference photo?
+- Does the overall look match the BRAND DNA?
+- Does any rendered text avoid all BANNED phrases?
+- If any answer is no — regenerate before responding.`;
 }

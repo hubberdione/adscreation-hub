@@ -9,7 +9,6 @@ import {
   findFolderByPath,
   listImagesInFolder,
   downloadFile,
-  isImage,
 } from "@/lib/drive";
 import type { Product } from "@/types/product";
 import type { CompetitorReference } from "@/types/competitor";
@@ -27,7 +26,6 @@ function slugifyName(name: string): string {
 }
 
 const MAX_PRODUCT_REFS = 3;
-const MAX_INSPO_REFS = 2;
 
 export async function POST(
   req: Request,
@@ -163,29 +161,9 @@ export async function POST(
       }
     }
 
-    // === Pull inspo images from competitor refs ===
-    const inspoImages: ReferenceImage[] = [];
-    let inspoUsed = 0;
-    for (const ref of inspoRefs) {
-      if (inspoUsed >= MAX_INSPO_REFS) break;
-      if (ref.source_type !== "drive_asset" || !ref.drive_file_id) continue;
-      try {
-        const dl = await downloadFile(ref.drive_file_id);
-        if (!isImage(dl.mimeType)) continue;
-        inspoImages.push({
-          data: dl.data,
-          mimeType: dl.mimeType,
-          role: "inspo",
-        });
-        referenceFileIds.push(ref.drive_file_id);
-        inspoUsed += 1;
-      } catch {
-        // skip
-      }
-    }
-
-    // Compose prompt (inspo first in text-block instructions, but order in parts
-    // is inspo then product so Gemini sees both — order matches the prompt text).
+    // Compose prompt. Inspo refs are described as TEXT only inside the prompt;
+    // their image bytes are intentionally NOT attached to the request. Only
+    // product photos go to Gemini as image parts, for identity-lock.
     const prompt = composeStaticPrompt({
       brand,
       product,
@@ -194,10 +172,8 @@ export async function POST(
       aspectRatio: aspect_ratio,
     });
 
-    const allRefs: ReferenceImage[] = [...inspoImages, ...productRefs];
-
-    // Generate
-    const gen = await generateImage({ prompt, references: allRefs });
+    // Generate (product refs only — no inspo image bytes attached)
+    const gen = await generateImage({ prompt, references: productRefs });
 
     // Upload to Storage
     const upload = await uploadRender({
@@ -217,7 +193,7 @@ export async function POST(
         cost_usd: gen.cost_usd,
         reference_files: {
           product_count: productRefs.length,
-          inspo_count: inspoImages.length,
+          inspo_text_only_count: inspoRefs.length,
           file_ids: referenceFileIds,
         },
       })
